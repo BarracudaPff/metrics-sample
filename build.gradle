@@ -1,0 +1,91 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+buildscript {
+    repositories {
+        mavenLocal()
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: 'kotlin-multiplatform'
+
+targetCompatibility = '1.8'
+sourceCompatibility = '1.8'
+
+tasks.withType(KotlinCompile) {
+    kotlinOptions.jvmTarget = JavaVersion.VERSION_1_8
+}
+
+kotlin {
+    targets {
+        js('frontend') {
+            browser {
+                testTask {
+                    // TODO: disable browser tests since we can't run it on teamcity agents yet
+                    enabled = false
+                }
+            }
+        }
+        jvm('backend') {
+        }
+    }
+
+    sourceSets {
+        commonTest {
+            dependencies {
+                implementation "org.jetbrains.kotlin:kotlin-test-annotations-common"
+                implementation "org.jetbrains.kotlin:kotlin-test-common"
+            }
+        }
+        backendMain {
+            dependencies {
+                implementation "io.ktor:ktor-server-netty:$ktor_version"
+                implementation "io.ktor:ktor-html-builder:$ktor_version"
+                implementation "io.ktor:ktor-gson:$ktor_version"
+
+                implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+                implementation "ch.qos.logback:logback-classic:$logback_version"
+            }
+        }
+        backendTest {
+            dependencies {
+                implementation "org.jetbrains.kotlin:kotlin-test"
+                implementation "org.jetbrains.kotlin:kotlin-test-junit"
+            }
+        }
+        frontendMain {
+            dependencies {
+                implementation "org.jetbrains.kotlin:kotlin-stdlib-js"
+                implementation "org.jetbrains.kotlin:kotlin-test-js"
+                implementation "io.ktor:ktor-client-core:$ktor_version"
+                implementation "io.ktor:ktor-client-js:$ktor_version"
+            }
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven" }
+}
+
+tasks.getByName('frontendBrowserProductionWebpack') {
+    outputFileName = 'output.js'
+}
+
+tasks.getByName('backendJar') {
+    dependsOn(tasks.getByName('frontendBrowserProductionWebpack'))
+    def frontendBrowserProductionWebpack = tasks.getByName('frontendBrowserProductionWebpack')
+    from(new File(frontendBrowserProductionWebpack.destinationDirectory, frontendBrowserProductionWebpack.outputFileName))
+}
+
+task run(type: JavaExec, dependsOn: [backendJar]) {
+    main = "io.ktor.samples.fullstack.backend.BackendCodeKt"
+    classpath(configurations.backendRuntimeClasspath, backendJar)
+    args = []
+}

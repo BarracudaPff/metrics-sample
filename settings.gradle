@@ -1,0 +1,13 @@
+rootProject.name = 'metrics-sample'
+
+enableFeaturePreview('GRADLE_METADATA')
+
+def module(group, name) {
+    include(name)
+    project(":$name").projectDir = file("$group/$name")
+}
+
+// ---------------------------
+
+module('samples', 'fullstack-mpp')
+include('emulate')
